@@ -141,7 +141,7 @@ body { background-color: #f8fafc; color: #0f172a; padding-bottom: 30px; -webkit-
 <button class="nav-btn" id="btnTabUrunler" onclick="sekmeAc('urunler')">Ürünler</button>
 <button class="nav-btn" id="btnTabGunluk" onclick="sekmeAc('gunluk')">Günlük</button>
 <button class="nav-btn" id="btnTabStok" onclick="sekmeAc('stok')">Stok</button>
-<div class="version-badge" onclick="kisiSec(true)" title="Kişiyi değiştir"><span>v2.4.3</span><span class="kisi" id="lblKisi">—</span></div>
+<div class="version-badge" onclick="kisiSec(true)" title="Kişiyi değiştir"><span>v2.4.4</span><span class="kisi" id="lblKisi">—</span></div>
 </div>
 
 <!-- ================= 1. SATIŞ ================= -->
@@ -210,6 +210,11 @@ style="flex:1; min-width:0; padding:14px; border:2px solid #0f172a; border-radiu
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:6px; flex-wrap:wrap;">
 <input type="date" id="seciliTarih" onchange="tarihDegisti()" style="padding:6px; border:1px solid #cbd5e1; border-radius:6px; font-weight:700; font-size:14px;">
 <button onclick="gunSonuExceliIndir()" style="background:#166534; color:#fff; border:none; padding:10px 12px; border-radius:6px; font-size:13px; font-weight:800; cursor:pointer;">⬇ Gün Sonu Excel</button>
+</div>
+<div style="display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; align-items:stretch;">
+<input type="email" id="mailAdres" placeholder="Mail adresi yazın" inputmode="email" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false" onchange="mailKaydet()" style="flex:1; min-width:170px; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:16px; font-weight:600;">
+<button onclick="gunSonuMailGonder()" style="background:#1d4ed8; color:#fff; border:none; padding:10px 12px; border-radius:6px; font-size:13px; font-weight:800; cursor:pointer;">✉ Mail gönder</button>
+<button onclick="gunSonuExcelPaylas()" style="background:#0f766e; color:#fff; border:none; padding:10px 12px; border-radius:6px; font-size:13px; font-weight:800; cursor:pointer;">📎 Excel ile gönder</button>
 </div>
 <div id="gecmisNot" class="past-note">Geçmiş gün — sadece görüntüleme. Fiş düzeltme ve silme yalnızca bugünün fişlerinde yapılabilir.</div>
 <div class="report-grid">
@@ -292,7 +297,7 @@ A sütunu barkod, C ürün adı, K stok, L satış fiyatı. İlk satır başlık
 <div id="toast" class="toast-msg"></div>
 
 <script>
-const SURUM = 'v2.4.3';
+const SURUM = 'v2.4.4';
 let SIRA = 0; // sepete en son dokunulan ürünü bulmak için sayaç
 const ODEME_GIZLI = true; // true: Nakit / Kredi kartı / Döviz / İndirim butonları gizli, ödeme girmeden hesap kapatılır
 let STOKLAR = {};
@@ -362,6 +367,7 @@ function stokKaydet() { lsSet('pos_stok_data', STOKLAR); }
 /* ---------- Başlangıç ---------- */
 window.onload = function () {
     if (ODEME_GIZLI) document.body.classList.add('odeme-gizli');
+    try { document.getElementById('mailAdres').value = lsGet('pos_mail', ''); } catch (e) {}
     STOKLAR = lsGet('pos_stok_data', {});
     KISI = lsGet('pos_kisi', '');
     document.getElementById('lblKisi').innerText = KISI || 'kişi seç';
@@ -841,7 +847,7 @@ function gunuTemizle() {
 }
 
 /* ---------- Gün Sonu Excel (çok sayfalı .xls) ---------- */
-function gunSonuExceliIndir() {
+function gunSonuExceliIndir(mod) {
     const t = document.getElementById('seciliTarih').value || isGunu();
     const liste = gunOku(t);
     if (!liste.length) return alert('Bu gün için kayıt yok!');
@@ -962,11 +968,58 @@ ${ws('Silinen Fişler', [50, 45, 50, 80, 75, 85, 80, 400], sil)}
 </Workbook>`;
     const ad = `Kasa_${tarihTR(t).replace(/\./g, '-')}${KISI ? '_' + KISI.replace(/[^\wçğıöşüÇĞİÖŞÜ]/g, '') : ''}.xls`;
     const blob = new Blob(['﻿' + xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    if (mod === 'paylas') return { blob, ad, t };
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = ad;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+/* ---------- Gün sonu: mail ile gönderme ---------- */
+// Not: Uygulama internetsiz, sunucusuz çalışır; bu yüzden mail telefonun kendi Mail uygulamasından gider.
+function mailKaydet() {
+    const v = document.getElementById('mailAdres').value.trim();
+    if (v) lsSet('pos_mail', v);
+    return v;
+}
+function mailGecerliMi(a) { return /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]{2,}$/.test(a); }
+function gunSonuMailKonu(t) { return `ITHAL gün sonu ${tarihTR(t)}${KISI ? ' - ' + KISI : ''}`; }
+// 1) Alıcı hazır, gün sonu özeti mail metninde olan Mail uygulamasını açar
+function gunSonuMailGonder() {
+    const mail = mailKaydet();
+    if (!mailGecerliMi(mail)) return alert('Önce geçerli bir mail adresi yazın.\nÖrnek: ad@firma.com');
+    const t = document.getElementById('seciliTarih').value || isGunu();
+    const liste = gunOku(t);
+    if (!liste.length) return alert('Bu gün için kayıt yok!');
+    const r = gunHesapla(liste);
+    const urunler = Object.values(r.urunler).sort((a, b) => String(a.ad).localeCompare(String(b.ad), 'tr'));
+    const toplamAdet = urunler.reduce((a, u) => a + u.adet, 0);
+    const SATIR_LIMIT = 80;
+    let g = `Tarih: ${tarihTR(t)}\n${KISI ? 'Kişi: ' + KISI + '\n' : ''}Fiş sayısı: ${r.fis}\nToplam ürün adedi: ${toplamAdet}\n`;
+    if (!ODEME_GIZLI) g += `Nakit: ${para(r.nakit)} TL\nKart: ${para(r.kart)} TL\nToplam: ${para(r.nakit + r.kart + r.dovizTL)} TL\n`;
+    g += '\nÜRÜNLER\n' + urunler.slice(0, SATIR_LIMIT).map(u => `${u.adet} adet - ${u.ad} (${u.barkod})`).join('\n');
+    if (urunler.length > SATIR_LIMIT) g += `\n... ve ${urunler.length - SATIR_LIMIT} ürün daha (tam liste için "Excel ile gönder" düğmesini kullanın)`;
+    location.href = 'mailto:' + mail + '?subject=' + encodeURIComponent(gunSonuMailKonu(t)) + '&body=' + encodeURIComponent(g);
+}
+// 2) Excel dosyasını paylaşım menüsünden (Mail dahil) göndermek için açar
+async function gunSonuExcelPaylas() {
+    const mail = mailKaydet();
+    if (!mailGecerliMi(mail)) return alert('Önce geçerli bir mail adresi yazın.\nÖrnek: ad@firma.com');
+    const o = gunSonuExceliIndir('paylas');
+    if (!o) return;
+    const dosya = new File([o.blob], o.ad, { type: 'application/vnd.ms-excel' });
+    try { if (navigator.clipboard) await navigator.clipboard.writeText(mail); } catch (e) {}
+    try {
+        if (navigator.canShare && navigator.canShare({ files: [dosya] })) {
+            await navigator.share({ files: [dosya], title: gunSonuMailKonu(o.t), text: gunSonuMailKonu(o.t) + '\nAlıcı: ' + mail });
+            return;
+        }
+    } catch (e) {
+        if (e && e.name === 'AbortError') return;
+    }
+    gunSonuExceliIndir(); // paylaşım desteklenmiyorsa dosyayı indir
+    toast('Paylaşım desteklenmiyor: Excel indirildi, mail\'e kendiniz ekleyin', 3500);
 }
 
 /* ---------- Ürünler (fiyat sorgu) ---------- */
