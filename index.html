@@ -61,7 +61,8 @@ body { background-color: #f8fafc; color: #0f172a; padding-bottom: 30px; -webkit-
 .banner-iade { background: #fee2e2; color: #991b1b; }
 .banner-iade button { background: #b91c1c; }
 /* Sepet Kartları */
-.cart-box { border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; margin-bottom: 12px; overflow: hidden; }
+.cart-box { border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; margin-bottom: 12px; overflow-x: hidden; overflow-y: auto; min-height: 42vh; max-height: 62vh; -webkit-overflow-scrolling: touch; }
+.cart-item.yeni { background: #dcfce7; border-left: 6px solid #16a34a; }
 .cart-box.iade { border: 2px solid #dc2626; }
 .cart-item { padding: 12px; border-bottom: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 6px; }
 .cart-item:last-child { border-bottom: none; }
@@ -140,7 +141,7 @@ body { background-color: #f8fafc; color: #0f172a; padding-bottom: 30px; -webkit-
 <button class="nav-btn" id="btnTabUrunler" onclick="sekmeAc('urunler')">Ürünler</button>
 <button class="nav-btn" id="btnTabGunluk" onclick="sekmeAc('gunluk')">Günlük</button>
 <button class="nav-btn" id="btnTabStok" onclick="sekmeAc('stok')">Stok</button>
-<div class="version-badge" onclick="kisiSec(true)" title="Kişiyi değiştir"><span>v2.4.2</span><span class="kisi" id="lblKisi">—</span></div>
+<div class="version-badge" onclick="kisiSec(true)" title="Kişiyi değiştir"><span>v2.4.3</span><span class="kisi" id="lblKisi">—</span></div>
 </div>
 
 <!-- ================= 1. SATIŞ ================= -->
@@ -291,7 +292,8 @@ A sütunu barkod, C ürün adı, K stok, L satış fiyatı. İlk satır başlık
 <div id="toast" class="toast-msg"></div>
 
 <script>
-const SURUM = 'v2.4.2';
+const SURUM = 'v2.4.3';
+let SIRA = 0; // sepete en son dokunulan ürünü bulmak için sayaç
 const ODEME_GIZLI = true; // true: Nakit / Kredi kartı / Döviz / İndirim butonları gizli, ödeme girmeden hesap kapatılır
 let STOKLAR = {};
 let SATISLAR = [];          // Günlük sekmesinde görüntülenen günün fişleri
@@ -410,8 +412,8 @@ function sepeteEkle(barkod) {
         kayit = { barkod: b, ad: 'KAYITSIZ ' + (ad.trim() || b), fiyat: sayiOku(f), listeFiyat: 0, stok: 0, kayitsiz: true };
     }
     const varOlan = SEPET.find(x => x.barkod === kayit.barkod);
-    if (varOlan) varOlan.adet += 1;
-    else SEPET.push({ ...kayit, adet: 1 });
+    if (varOlan) { varOlan.adet += 1; varOlan.t = ++SIRA; }
+    else SEPET.push({ ...kayit, adet: 1, t: ++SIRA });
     odemeleriSifirla();
     sepetiCiz();
 }
@@ -426,6 +428,7 @@ function odemeleriSifirla() {
 
 function sepetAdetDegis(idx, miktar) {
     SEPET[idx].adet += miktar;
+    SEPET[idx].t = ++SIRA;
     if (SEPET[idx].adet <= 0) SEPET.splice(idx, 1);
     if (UYGULANAN_INDIRIM > getSepetBrut()) UYGULANAN_INDIRIM = getSepetBrut();
     odemeleriSifirla();
@@ -496,12 +499,15 @@ function sepetiCiz() {
         return;
     }
     let toplamAdet = 0, html = '';
-    SEPET.forEach((item, idx) => {
+    // En son okutulan/dokunulan ürün en üstte ve yeşil
+    const sirali = SEPET.map((item, idx) => ({ item, idx })).sort((a, b) => ((b.item.t || 0) - (a.item.t || 0)) || (b.idx - a.idx));
+    const enYeni = sirali.length && (sirali[0].item.t || 0) > 0 ? sirali[0].idx : -1;
+    sirali.forEach(({ item, idx }) => {
         toplamAdet += item.adet;
         const kalan = IADE_MODU ? item.stok + item.adet : item.stok - item.adet;
         const rozet = kalan < 0 ? 'stock-badge stock-danger' : 'stock-badge stock-ok';
         const degisti = !item.kayitsiz && Math.abs(item.fiyat - item.listeFiyat) > 0.001;
-        html += `<div class="cart-item">
+        html += `<div class="cart-item${idx === enYeni ? ' yeni' : ''}">
 <div class="item-title">${esc(item.ad)}</div>
 <div class="item-sub"><span>${esc(item.barkod)}</span>${item.kayitsiz ? '<span class="stock-badge stock-danger">listede yok</span>' : `<span class="${rozet}">stokta kalan ${kalan}</span>`}</div>
 <div class="item-controls">
@@ -510,6 +516,7 @@ function sepetiCiz() {
 </div></div>`;
     });
     box.innerHTML = html;
+    box.parentElement.scrollTop = 0; // en yeni ürün hep görünsün
     document.getElementById('txtKalemUrun').innerText = `${SEPET.length} kalem, ${toplamAdet} ürün`;
     document.getElementById('txtGenelToplam').innerText = para(getSepetNet()) + ' ₺';
     if (UYGULANAN_INDIRIM > 0) {
