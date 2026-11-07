@@ -6,12 +6,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Kasa">
+<meta name="apple-mobile-web-app-title" content="ITHAL">
 <meta name="theme-color" content="#0f172a">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
-<title>Mobil Kasa v2.4.0</title>
+<title>ITHAL</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 body { background-color: #f8fafc; color: #0f172a; padding-bottom: 30px; -webkit-tap-highlight-color: transparent; padding-top: env(safe-area-inset-top); }
@@ -43,6 +43,10 @@ body { background-color: #f8fafc; color: #0f172a; padding-bottom: 30px; -webkit-
 @keyframes tarama { 0%, 100% { transform: translateY(-40px); } 50% { transform: translateY(40px); } }
 #kameraZoom { position: absolute; right: 14px; bottom: 14px; background: rgba(15,23,42,0.75); color: #fff; border: 2px solid #fff; border-radius: 20px; padding: 6px 14px; font-weight: 800; font-size: 15px; display: none; }
 .kamera-alt { color: #cbd5e1; text-align: center; padding: 14px 16px calc(18px + env(safe-area-inset-bottom)); font-size: 14px; font-weight: 600; }
+#kameraSon { background: rgba(15,23,42,0.92); color: #fff; border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; text-align: left; min-height: 62px; }
+#kameraSon .ad { font-size: 16px; font-weight: 800; line-height: 1.25; color: #fff; }
+#kameraSon .alt { font-size: 13px; font-weight: 700; color: #86efac; margin-top: 4px; }
+#kameraSon .bos { color: #94a3b8; font-size: 13px; font-weight: 600; }
 .kamera-alt input { margin-top: 10px; width: 100%; padding: 12px; border-radius: 10px; border: none; font-size: 16px; font-weight: 700; text-align: center; }
 /* Döviz kutuları */
 .doviz-satir { margin-top: 6px; background: #ccfbf1; color: #115e59; border-radius: 6px; padding: 6px 8px; font-size: 12px; font-weight: 700; }
@@ -79,6 +83,7 @@ body { background-color: #f8fafc; color: #0f172a; padding-bottom: 30px; -webkit-
 .total-wrapper { margin-top: 10px; margin-bottom: 12px; background: #ffffff; padding: 14px; border-radius: 12px; border: 1px solid #e2e8f0; }
 .total-label { font-size: 13px; font-weight: 700; color: #64748b; }
 .total-amount { font-size: 38px; font-weight: 900; color: #0f172a; line-height: 1.1; }
+.odeme-gizli .pay-grid, .odeme-gizli #satisEkButonlar, .odeme-gizli .payment-progress-box { display: none !important; }
 .payment-progress-box { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
 /* Butonlar */
 .pay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
@@ -135,7 +140,7 @@ body { background-color: #f8fafc; color: #0f172a; padding-bottom: 30px; -webkit-
 <button class="nav-btn" id="btnTabUrunler" onclick="sekmeAc('urunler')">Ürünler</button>
 <button class="nav-btn" id="btnTabGunluk" onclick="sekmeAc('gunluk')">Günlük</button>
 <button class="nav-btn" id="btnTabStok" onclick="sekmeAc('stok')">Stok</button>
-<div class="version-badge" onclick="kisiSec(true)" title="Kişiyi değiştir"><span>v2.4.0</span><span class="kisi" id="lblKisi">—</span></div>
+<div class="version-badge" onclick="kisiSec(true)" title="Kişiyi değiştir"><span>v2.4.2</span><span class="kisi" id="lblKisi">—</span></div>
 </div>
 
 <!-- ================= 1. SATIŞ ================= -->
@@ -279,14 +284,15 @@ A sütunu barkod, C ürün adı, K stok, L satış fiyatı. İlk satır başlık
 
 <!-- KAMERA İLE BARKOD -->
 <div id="kameraOverlay" class="kamera-overlay">
-<div class="kamera-ust"><span>Barkodu çerçeveye getirin</span><button onclick="kameraKapat()">Kapat</button></div>
+<div class="kamera-ust"><span>Barkodu çerçeveye getirin</span><button onclick="kameraKapat()">Bitti</button></div>
 <div id="kameraAlan"><video id="kameraVideo" playsinline muted autoplay></video><div id="kameraCerceve"></div><button id="kameraZoom" onclick="kameraZoomDegistir()">2×</button></div>
-<div class="kamera-alt"><div id="kameraDurum">Kamera açılıyor...</div></div>
+<div class="kamera-alt"><div id="kameraSon"></div><div id="kameraDurum">Kamera açılıyor...</div></div>
 </div>
 <div id="toast" class="toast-msg"></div>
 
 <script>
-const SURUM = 'v2.4.0';
+const SURUM = 'v2.4.2';
+const ODEME_GIZLI = true; // true: Nakit / Kredi kartı / Döviz / İndirim butonları gizli, ödeme girmeden hesap kapatılır
 let STOKLAR = {};
 let SATISLAR = [];          // Günlük sekmesinde görüntülenen günün fişleri
 let SEPET = [];
@@ -353,6 +359,7 @@ function stokKaydet() { lsSet('pos_stok_data', STOKLAR); }
 
 /* ---------- Başlangıç ---------- */
 window.onload = function () {
+    if (ODEME_GIZLI) document.body.classList.add('odeme-gizli');
     STOKLAR = lsGet('pos_stok_data', {});
     KISI = lsGet('pos_kisi', '');
     document.getElementById('lblKisi').innerText = KISI || 'kişi seç';
@@ -562,7 +569,7 @@ function hesapKapat() {
     if (SEPET.length === 0) return alert('Sepette ürün yok!');
     if (!KISI) { kisiSec(false); if (!KISI) return; }
     const kalan = getKalanTutar();
-    if (kalan > 0.009) return alert(`Kalan ${para(kalan)} ₺ henüz girilmedi!\nNakit veya Kredi kartı butonuna basın.`);
+    if (!ODEME_GIZLI && kalan > 0.009) return alert(`Kalan ${para(kalan)} ₺ henüz girilmedi!\nNakit veya Kredi kartı butonuna basın.`);
 
     const bugun = isGunu();
     const gunler = lsGet('pos_satislar_' + bugun, null) ? gunOku(bugun) : [];
@@ -1094,6 +1101,8 @@ async function zipAc(buf, istenen) {
 /* ---------- Kamera ile barkod okuma (zxing-wasm) ---------- */
 let KAMERA_HEDEF = 'satis', KAMERA_KILIT = false, KAMERA_AKIS = null, KAMERA_OTURUM = 0, KUTUPHANE = null, SES = null;
 let KAMERA_ZOOM = null;
+let KAMERA_ACIK = false, KAMERA_SONKABUL = null;
+const KAMERA_BEKLEME = 1200; // aynı barkod kameranın önünde durdukça tekrar eklenmez (ms)
 const KAMERA_FORMATLAR = ['EAN13', 'EAN8', 'UPCA', 'UPCE', 'Code128', 'Code39', 'ITF'];
 const KAMERA_TUVAL = document.createElement('canvas');
 function kutuphaneYukle() {
@@ -1130,8 +1139,9 @@ function bipCal() {
         o.start(t); o.stop(t + 0.14);
     } catch (e) {}
 }
-async function kameraAc(hedef) {
-    KAMERA_HEDEF = hedef; KAMERA_KILIT = false;
+async function kameraAc(hedef, yeniden) {
+    KAMERA_HEDEF = hedef; KAMERA_KILIT = false; KAMERA_ACIK = true;
+    if (!yeniden) { KAMERA_SONKABUL = null; kameraSonYaz('', ''); }
     const oturum = ++KAMERA_OTURUM;
     sesHazirla(); // iPhone sesi yalnızca dokunuşla açılan anda izin verir
     const durum = document.getElementById('kameraDurum');
@@ -1165,7 +1175,11 @@ async function kameraAc(hedef) {
             if (Object.keys(ek).length) await iz.applyConstraints({ advanced: [ek] });
         } catch (e) {}
         if (KAMERA_ZOOM) { zoomBtn.style.display = 'block'; zoomBtn.innerText = KAMERA_ZOOM.deger > 1 ? '1×' : '2×'; }
-        durum.innerText = 'Barkodu çerçevenin içine getirin, 15–20 cm uzakta tutun. Okununca bip sesi gelir ve kendiliğinden kapanır.';
+        durum.innerText = 'Kamera sürekli açık. Barkodları arka arkaya okutun, işiniz bitince Bitti\'ye basın.';
+        // Kamera kendiliğinden kesilirse (arama, sistem kesintisi vb.) yeniden aç
+        iz.addEventListener('ended', () => {
+            setTimeout(() => { if (KAMERA_ACIK && oturum === KAMERA_OTURUM) kameraAc(KAMERA_HEDEF, true); }, 600);
+        });
         kameraTara(oturum);
     } catch (err) {
         const m = String(err && (err.message || err));
@@ -1210,23 +1224,36 @@ function kameraKareAl(video) {
 // bir barkod görülürse o seçilir. Stok listesi hiç yüklenmemişse 3 kare yeterlidir.
 async function kameraTara(oturum) {
     const video = document.getElementById('kameraVideo');
-    const sayac = {}, bas = Date.now();
+    const gorulen = {};
     const listeVar = Object.keys(STOKLAR).length > 0;
-    while (oturum === KAMERA_OTURUM && KAMERA_AKIS && !KAMERA_KILIT) {
+    while (oturum === KAMERA_OTURUM && KAMERA_AKIS) {
         try {
+            if (video.paused && video.srcObject) video.play().catch(() => {});
+            const simdi = Date.now();
+            for (const k in gorulen) if (simdi - gorulen[k].son > 1500) delete gorulen[k];
             const kare = video.readyState >= 2 ? kameraKareAl(video) : null;
             if (kare) {
                 const sonuc = await ZXingWASM.readBarcodes(kare, { formats: KAMERA_FORMATLAR, tryHarder: true, tryRotate: true, maxNumberOfSymbols: 1 });
                 const s = sonuc.find(r => r.isValid && r.text);
                 if (s && oturum === KAMERA_OTURUM) {
                     const t = s.text.replace(/\s/g, '');
-                    const listede = !!bul(t);
-                    const n = sayac[t] = (sayac[t] || 0) + 1;
-                    if (!listeVar && n >= 3) { kameraOkundu(t); return; }
-                    if (listeVar && listede && n >= 2) { kameraOkundu(t); return; }
-                    if (listeVar && !listede && n >= 4 && Date.now() - bas > 1000) {
-                        const enCok = Object.entries(sayac).sort((a, b) => b[1] - a[1])[0][0];
-                        if (enCok === t) { kameraOkundu(t); return; }
+                    const an = Date.now();
+                    if (KAMERA_SONKABUL && KAMERA_SONKABUL.t === t && an - KAMERA_SONKABUL.zaman < KAMERA_BEKLEME) {
+                        // Aynı barkod hâlâ kameranın önünde: tekrar ekleme, sadece "görüldü" zamanını tazele
+                        KAMERA_SONKABUL.zaman = an;
+                    } else {
+                        const listede = !!bul(t);
+                        const e = gorulen[t] || (gorulen[t] = { n: 0, ilk: an, son: an });
+                        e.n++; e.son = an;
+                        let kabul = false;
+                        if (!listeVar) kabul = e.n >= 3;
+                        else if (listede) kabul = e.n >= 2;
+                        else if (e.n >= 4 && an - e.ilk > 1000) kabul = Object.entries(gorulen).sort((a, b) => b[1].n - a[1].n)[0][0] === t;
+                        if (kabul) {
+                            for (const k in gorulen) delete gorulen[k];
+                            await kameraOkundu(t);
+                            KAMERA_SONKABUL = { t, zaman: Date.now() };
+                        }
                     }
                 }
             }
@@ -1234,33 +1261,63 @@ async function kameraTara(oturum) {
         await new Promise(r => setTimeout(r, 40));
     }
 }
+function kameraSonYaz(ad, alt) {
+    const kutu = document.getElementById('kameraSon');
+    if (!kutu) return;
+    kutu.innerHTML = '';
+    if (!ad) { const b = document.createElement('div'); b.className = 'bos'; b.textContent = 'Henüz barkod okunmadı'; kutu.appendChild(b); return; }
+    const a = document.createElement('div'); a.className = 'ad'; a.textContent = ad; kutu.appendChild(a);
+    if (alt) { const l = document.createElement('div'); l.className = 'alt'; l.textContent = alt; kutu.appendChild(l); }
+}
+// Kamera AÇIK KALIR: okunan barkod işlenir, kamera taramaya devam eder.
 async function kameraOkundu(metin) {
-    if (KAMERA_KILIT) return;
-    KAMERA_KILIT = true;
     const b = normBarkod(String(metin).replace(/\s/g, ''));
     bipCal();
     try { navigator.vibrate && navigator.vibrate(80); } catch (e) {}
-    document.getElementById('kameraCerceve').classList.add('okundu');
-    await new Promise(r => setTimeout(r, 250));
-    await kameraKapat();
+    const cer = document.getElementById('kameraCerceve');
+    cer.classList.add('okundu');
+    setTimeout(() => cer.classList.remove('okundu'), 400);
     if (KAMERA_HEDEF === 'urunler') {
         arama.value = b; stokAra(); aramaYeniOkutma = true;
+        const u = bul(b);
+        kameraSonYaz(u ? u.ad : 'Listede yok: ' + b, u ? `${para(u.fiyat)} ₺  ·  Stok: ${u.stok}` : '');
     } else {
-        const inp = document.getElementById('barkodInput');
-        inp.value = b; barkodManuelEkle();
+        const topla = () => SEPET.reduce((a, x) => a + x.adet, 0);
+        const once = topla();
+        sepeteEkle(b); // listede olmayan barkodda fiyat sorar (kamera arkada açık kalır)
+        if (topla() > once) {
+            const kb = (bul(b) || {}).barkod || b;
+            const k = SEPET.find(x => x.barkod === kb);
+            kameraSonYaz(k ? k.ad : b, `✓ Eklendi  ·  Bu üründen ${k ? k.adet : 1} adet  ·  Sepet: ${topla()} ürün, ${para(getSepetNet())} ₺`);
+        } else {
+            kameraSonYaz('Eklenmedi: ' + b, '');
+        }
     }
-    toast('Okundu: ' + b);
 }
+// Yalnızca "Bitti" düğmesi kamerayı kapatır
 async function kameraKapat() {
+    KAMERA_ACIK = false;
     KAMERA_OTURUM++;
     try { if (KAMERA_AKIS) KAMERA_AKIS.getTracks().forEach(t => t.stop()); } catch (e) {}
-    KAMERA_AKIS = null; KAMERA_ZOOM = null;
+    KAMERA_AKIS = null; KAMERA_ZOOM = null; KAMERA_SONKABUL = null;
     const video = document.getElementById('kameraVideo');
     try { video.pause(); video.srcObject = null; } catch (e) {}
     document.getElementById('kameraOverlay').classList.remove('open');
 }
-// Uygulama arka plana atılırsa kamerayı kapat (iPhone ışığı açık kalmasın)
-document.addEventListener('visibilitychange', () => { if (document.hidden && KAMERA_AKIS) kameraKapat(); });
+// Uygulama arka plana gidince kamera ışığı yanık kalmasın diye akış durdurulur,
+// geri dönülünce kamera kendiliğinden yeniden açılır.
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        if (KAMERA_ACIK && KAMERA_AKIS) {
+            KAMERA_OTURUM++;
+            try { KAMERA_AKIS.getTracks().forEach(t => t.stop()); } catch (e) {}
+            KAMERA_AKIS = null; KAMERA_ZOOM = null;
+            try { const v = document.getElementById('kameraVideo'); v.pause(); v.srcObject = null; } catch (e) {}
+        }
+    } else if (KAMERA_ACIK && !KAMERA_AKIS) {
+        kameraAc(KAMERA_HEDEF, true);
+    }
+});
 
 /* ---------- Sekmeler ---------- */
 function sekmeAc(ad) {
